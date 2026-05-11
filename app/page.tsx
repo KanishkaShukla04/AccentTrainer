@@ -16,8 +16,10 @@ export default function Home() {
   const [gameStarted, setGameStarted] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [streak, setStreak] = useState(0);
- const [timeLeft, setTimeLeft] = useState(10);
- const [gameOver, setGameOver] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(10);
+  const [gameOver, setGameOver] = useState(false);
+  const [targetWord, setTargetWord] = useState("");
+  const [pronunciationScore, setPronunciationScore] = useState<number | null>(null);
 
   const handleSearch = async () => {
     const input = word.toLowerCase().trim();
@@ -73,8 +75,41 @@ export default function Home() {
 
   speechSynthesis.speak(utterance);
 };
+const calculateScore = (
+  spoken: string,
+  target: string
+) => {
+  spoken = spoken.toLowerCase().trim();
+  target = target.toLowerCase().trim();
 
- const startListening = () => {
+  if (spoken === target) return 100;
+
+  let matches = 0;
+
+  for (
+    let i = 0;
+    i < Math.min(spoken.length, target.length);
+    i++
+  ) {
+    if (spoken[i] === target[i]) {
+      matches++;
+    }
+  }
+
+  return Math.floor(
+    (matches / target.length) * 100
+  );
+};
+
+const practicePronunciation = () => {
+  if (
+  !(window as any).SpeechRecognition &&
+  !(window as any).webkitSpeechRecognition
+) {
+  alert("Speech Recognition not supported");
+  return;
+}
+  if (!targetWord) return;
   const SpeechRecognition =
     (window as any).SpeechRecognition ||
     (window as any).webkitSpeechRecognition;
@@ -83,30 +118,61 @@ export default function Home() {
 
   recognition.lang = "en-US";
   recognition.start();
+
+  recognition.onresult = (event: any) => {
+    const spoken =
+      event.results[0][0].transcript;
+
+    const score = calculateScore(
+      spoken,
+      targetWord
+    );
+
+    setPronunciationScore(score);
+  };
+};
+
+const startListening = () => {
+  if (
+  !(window as any).SpeechRecognition &&
+  !(window as any).webkitSpeechRecognition
+) {
+  alert("Speech Recognition not supported");
+  return;
+}
+  const SpeechRecognition =
+    (window as any).SpeechRecognition ||
+    (window as any).webkitSpeechRecognition;
+
+  const recognition = new SpeechRecognition();
+
+  recognition.lang = "en-US";
+  recognition.start();
+
   setListening(true);
 
   recognition.onresult = (event: any) => {
-   const spokenText =
-  event.results[0][0].transcript;
+    const spokenText =
+      event.results[0][0].transcript;
 
-setWord(spokenText);
+    setWord(spokenText);
 
-if (
-  gameWord &&
-  spokenText.toLowerCase().trim() ===
-    gameWord.uk.toLowerCase()
-) {
-  setFeedback("🎯 Perfect pronunciation!");
-  setScore((prev) => prev + 1);
-} else if (gameWord) {
-  setFeedback(
-    `❌ You said "${spokenText}" instead of "${gameWord.uk}"`
-  );
+    if (
+      gameWord &&
+      spokenText.toLowerCase().trim() ===
+        gameWord.uk.toLowerCase()
+    ) {
+      setFeedback("🎯 Perfect pronunciation!");
+      setScore((prev) => prev + 1);
+    } else if (gameWord) {
+      setFeedback(
+        `❌ You said "${spokenText}" instead of "${gameWord.uk}"`
+      );
 
-  roastUser();
-}
+      roastUser();
+    }
 
-setListening(false);
+    setListening(false);
   };
 
   recognition.onerror = () => {
@@ -171,8 +237,8 @@ const checkAnswer = (answer: string) => {
   const correct =answer.toLowerCase() ===gameWord.uk.toLowerCase();
 
   if (correct) {
-    setScore(score + 1);
-    setStreak(streak + 1);
+    setScore((prev) => prev + 1);
+    setStreak((prev) => prev + 1);
     setFeedback("✅ Correct!");
   } else {
     setStreak(0);
@@ -226,21 +292,6 @@ useEffect(() => {
   startListening={startListening}
 />
 
-        <SearchBox
-  word={word}
-  setWord={setWord}
-  suggestions={suggestions}
-  setSuggestions={setSuggestions}
-  wordPairs={wordPairs}
-  setResult={setResult}
-  handleSearch={handleSearch}
-/>
-
-<VoiceButton
-  listening={listening}
-  startListening={startListening}
-/>
-
 <Game
   gameStarted={gameStarted}
   gameWord={gameWord}
@@ -269,41 +320,36 @@ useEffect(() => {
       accent="uk"
       speak={speak}
     />
+    <button
+  onClick={() => {
+  setTargetWord(result.us);
+  setPronunciationScore(null);
+}}
+  className="mt-3 w-full py-2 bg-cyan-500 rounded-lg hover:scale-105 transition"
+>
+  🎙 Practice Pronunciation
+</button>
 
-  </div>
-)}
-<Game
-  gameStarted={gameStarted}
-  gameWord={gameWord}
-  score={score}
-  streak={streak}
-  timeLeft={timeLeft}
-  gameOver={gameOver}
-  feedback={feedback}
-  startGame={startGame}
-  checkAnswer={checkAnswer}
-/>
- {result && (
-  <div className="mt-6 text-white space-y-4">
+{targetWord && (
+  <>
+    <button
+      onClick={practicePronunciation}
+      className="mt-3 w-full py-2 bg-blue-500 rounded-lg hover:scale-105 transition"
+    >
+      🎤 Speak Now
+    </button>
 
-    <ResultCard
-      title="🇺🇸 US"
-      value={result.us}
-      accent="us"
-      speak={speak}
-    />
-
-    <ResultCard
-      title="🇬🇧 UK"
-      value={result.uk}
-      accent="uk"
-      speak={speak}
-    />
-
-  </div>
-)}
-
+    {pronunciationScore !== null && (
+      <div className="mt-4 text-cyan-300 font-bold">
+        Pronunciation Accuracy: {pronunciationScore}%
       </div>
+    )}
+  </>
+)}
+
+  </div>
+)}
+    </div>
     </div>
   );
 }
