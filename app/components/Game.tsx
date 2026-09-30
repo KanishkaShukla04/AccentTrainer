@@ -45,7 +45,7 @@ export default function Game({
             Which is the 🇬🇧 UK word for:
           </h2>
 
-          <p className="text-2xl mt-3 text-purple-300">
+          <p className="text-xl sm:text-2xl mt-3 text-purple-300">
             {gameWord.us}
           </p>
 

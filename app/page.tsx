@@ -20,6 +20,9 @@ export default function Home() {
   const [gameOver, setGameOver] = useState(false);
   const [targetWord, setTargetWord] = useState("");
   const [pronunciationScore, setPronunciationScore] = useState<number | null>(null);
+  const [difficulty, setDifficulty] =useState("easy");
+  const [highScore, setHighScore] = useState(0);
+const [leaderboard, setLeaderboard] = useState<number[]>([]);
 
   const handleSearch = async () => {
     const input = word.toLowerCase().trim();
@@ -44,14 +47,18 @@ export default function Home() {
 
       const data = await res.json();
 
+      if(!res.ok){
+        throw new Error(data.error || "AI service unavailable");
+      }
+
       setResult({
         us: "AI Explanation 🤖",
         uk: data.result,
       });
     } catch (error) {
       setResult({
-        us: "Error",
-        uk: "AI service failed",
+        us: "AI unavailablle",
+        uk: "This word is currently isn't available in the Accent Trainer dataset.",
       });
     }
   };
@@ -181,8 +188,19 @@ const startListening = () => {
 };
 
 const startGame = () => {
-  const random =
-    wordPairs[Math.floor(Math.random() * wordPairs.length)];
+  const filteredWords =
+  wordPairs.filter(
+    (item) =>
+      item.difficulty === difficulty
+  );
+
+const random =
+  filteredWords[
+    Math.floor(
+      Math.random() *
+      filteredWords.length
+    )
+  ];
 
   setGameWord(random);
   setGameStarted(true);
@@ -257,11 +275,36 @@ useEffect(() => {
   if (!gameStarted || gameOver) return;
 
   if (timeLeft === 0) {
-    roastUser();
-    setGameOver(true);
-    setFeedback("💀 Time ran out!");
-    return;
-  }
+  roastUser();
+
+  setGameOver(true);
+
+  setFeedback("💀 Time ran out!");
+
+  const newHigh =
+    Math.max(score, highScore);
+
+  setHighScore(newHigh);
+
+  localStorage.setItem(
+    "highScore",
+    newHigh.toString()
+  );
+
+  const updatedBoard =
+    [...leaderboard, score]
+      .sort((a,b)=>b-a)
+      .slice(0,5);
+
+  setLeaderboard(updatedBoard);
+
+  localStorage.setItem(
+    "leaderboard",
+    JSON.stringify(updatedBoard)
+  );
+
+  return;
+}
 
   const timer = setTimeout(() => {
     setTimeLeft((prev) => prev - 1);
@@ -271,10 +314,21 @@ useEffect(() => {
 }, [timeLeft, gameStarted, gameOver]);
   return (
 <div className="min-h-screen bg-gradient-to-br from-purple-900 via-black to-gray-900 flex items-center justify-center animate-gradient">     
-<div className="bg-white/10 backdrop-blur-xl p-8 rounded-3xl shadow-[0_0_40px_rgba(168,85,247,0.4)] w-[360px] text-center border border-white/10">        
-<h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 mb-6">          
+<div className="bg-white/10 backdrop-blur-xl p-8 rounded-3xl shadow-[0_0_40px_rgba(168,85,247,0.4)] w-full max-w-md text-center border border-white/10">        
+<h1 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 mb-6">          
   🌍 Accent Trainer
         </h1>
+        <select
+  value={difficulty}
+  onChange={(e) =>
+    setDifficulty(e.target.value)
+  }
+  className="w-full p-3 mb-4 rounded-lg bg-black/50 text-white"
+>
+  <option value="easy">Easy</option>
+  <option value="medium">Medium</option>
+  <option value="hard">Hard</option>
+</select>
 
         <SearchBox
   word={word}
